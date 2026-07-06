@@ -10,6 +10,15 @@ services:
       - "5433:5432"
     volumes:
       - orderdb_data:/var/lib/postgresql/data
+    
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - "5672:5672"     # AMQP protocol port — your app connects here
+      - "15672:15672"   # Management UI — browser
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
 
 volumes:
   orderdb_data:

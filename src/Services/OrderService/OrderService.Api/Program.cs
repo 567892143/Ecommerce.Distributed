@@ -14,6 +14,7 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Pr
 builder.Services.AddValidatorsFromAssemblyContaining<PlaceOrderValidator>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSingleton<OrderService.Api.Infrastructure.RabbitMq.OrderPlacedPublisher>();
 
 var app = builder.Build();
 
