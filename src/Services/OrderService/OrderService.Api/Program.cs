@@ -2,7 +2,6 @@ using FluentValidation;
 using MassTransit;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using OrderService.Api.Features.Diagnostics;
 using OrderService.Api.Features.GetOrderById;
 using OrderService.Api.Features.PlaceOrder;
 using OrderService.Api.Infrastructure;
@@ -19,7 +18,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddMassTransit(x =>
 {
-    x.AddConsumer<OrderPlacedLoggingConsumer>();
+   
 
     x.UsingRabbitMq((context, cfg) =>
     {
