@@ -1,6 +1,8 @@
 using FluentValidation;
+using MassTransit;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OrderService.Api.Features.Diagnostics;
 using OrderService.Api.Features.GetOrderById;
 using OrderService.Api.Features.PlaceOrder;
 using OrderService.Api.Infrastructure;
@@ -14,7 +16,22 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Pr
 builder.Services.AddValidatorsFromAssemblyContaining<PlaceOrderValidator>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddSingleton<OrderService.Api.Infrastructure.RabbitMq.OrderPlacedPublisher>();
+
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumer<OrderPlacedLoggingConsumer>();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host(builder.Configuration["RabbitMq:Host"] ?? "localhost", "/", h =>
+        {
+            h.Username(builder.Configuration["RabbitMq:User"] ?? "guest");
+            h.Password(builder.Configuration["RabbitMq:Password"] ?? "guest");
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 var app = builder.Build();
 

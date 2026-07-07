@@ -1,7 +1,9 @@
+using MassTransit;
 using MediatR;
 using OrderService.Api.Infrastructure;
 using OrderService.Api.Infrastructure.RabbitMq;
 using OrderService.Domain;
+using Shared.Contracts.Events;
 
 namespace OrderService.Api.Features.PlaceOrder;
 
@@ -10,8 +12,11 @@ public class PlaceOrderHandler : IRequestHandler<PlaceOrderCommand, PlaceOrderRe
     private readonly OrderDbContext _db;
     private readonly OrderPlacedPublisher _publisher;
 
-    public PlaceOrderHandler(OrderDbContext db, OrderPlacedPublisher publisher){_db = db;
+    private readonly IPublishEndpoint _publishEndpoint;
+
+    public PlaceOrderHandler(OrderDbContext db, OrderPlacedPublisher publisher,IPublishEndpoint publishEndpoint){_db = db;
         _publisher = publisher;
+        _publishEndpoint = publishEndpoint;
     }
 
     public async Task<PlaceOrderResult> Handle(PlaceOrderCommand request, CancellationToken ct)
@@ -21,7 +26,17 @@ public class PlaceOrderHandler : IRequestHandler<PlaceOrderCommand, PlaceOrderRe
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(ct);
 
-        await _publisher.PublishAsync(order.Id, order.CustomerId, order.TotalAmount);
+       // await _publisher.PublishAsync(order.Id, order.CustomerId, order.TotalAmount);
+
+           await _publishEndpoint.Publish(new OrderPlaced
+        {
+            OrderId = order.Id,
+            CustomerId = order.CustomerId,
+            ProductId = order.ProductId,
+            Quantity = order.Quantity,
+            TotalAmount = order.TotalAmount,
+            OccurredAtUtc = DateTime.UtcNow
+        }, ct);
 
         return new PlaceOrderResult(order.Id, order.Status.ToString());
     }
