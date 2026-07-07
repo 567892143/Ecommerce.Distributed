@@ -10,12 +10,12 @@ namespace OrderService.Api.Features.PlaceOrder;
 public class PlaceOrderHandler : IRequestHandler<PlaceOrderCommand, PlaceOrderResult>
 {
     private readonly OrderDbContext _db;
-    private readonly OrderPlacedPublisher _publisher;
+    //private readonly OrderPlacedPublisher _publisher;
 
     private readonly IPublishEndpoint _publishEndpoint;
 
-    public PlaceOrderHandler(OrderDbContext db, OrderPlacedPublisher publisher,IPublishEndpoint publishEndpoint){_db = db;
-        _publisher = publisher;
+    public PlaceOrderHandler(OrderDbContext db,IPublishEndpoint publishEndpoint){_db = db;
+      //  _publisher = publisher;
         _publishEndpoint = publishEndpoint;
     }
 
