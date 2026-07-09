@@ -36,10 +36,10 @@ public class PlaceOrderHandler : IRequestHandler<PlaceOrderCommand, PlaceOrderRe
             Quantity = order.Quantity,
             TotalAmount = order.TotalAmount,
             OccurredAtUtc = DateTime.UtcNow
-        }, ct);
+        },context => {context.CorrelationId = order.Id ;}, ct);
 
          await _db.SaveChangesAsync(ct);
-      await Task.Delay(10000);
+     
         return new PlaceOrderResult(order.Id, order.Status.ToString());
     }
 }
