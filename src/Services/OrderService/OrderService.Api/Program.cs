@@ -18,6 +18,12 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddMassTransit(x =>
 {
+      x.AddEntityFrameworkOutbox<OrderDbContext>(o =>
+    {
+        o.UsePostgres();               // tells MassTransit which SQL dialect to generate for the outbox tables
+        o.UseBusOutbox();              // <-- this is the switch that reroutes ALL publishes through the outbox
+        o.QueryDelay = TimeSpan.FromSeconds(1); // how often the outbox delivery service polls for unsent messages
+    });
    
 
     x.UsingRabbitMq((context, cfg) =>

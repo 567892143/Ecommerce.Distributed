@@ -1,3 +1,4 @@
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using PaymentService.Domain;
 
@@ -8,6 +9,8 @@ public class PaymentDbContext : DbContext
     public PaymentDbContext(DbContextOptions<PaymentDbContext> options) : base(options) { }
 
     public DbSet<Payment> Payments => Set<Payment>();
+
+    public DbSet<ProcessedMessage> ProcessedMessages => Set<ProcessedMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,5 +24,16 @@ public class PaymentDbContext : DbContext
             builder.Property(p => p.FailureReason).HasMaxLength(500);
             builder.Property(p => p.CreatedAtUtc).IsRequired();
         });
+
+         modelBuilder.Entity<ProcessedMessage>(builder =>
+        {
+            builder.ToTable("processed_messages");
+            builder.HasKey(p => p.MessageId);
+            builder.Property(p => p.ProcessedAtUtc).IsRequired();
+        });
+
+          modelBuilder.AddInboxStateEntity();
+        modelBuilder.AddOutboxMessageEntity();
+        modelBuilder.AddOutboxStateEntity();
     }
 }

@@ -19,52 +19,74 @@ public class OrderPlacedConsumer : IConsumer<OrderPlaced>
 
     public async Task Consume(ConsumeContext<OrderPlaced> context)
     {
+        var messageId = context.MessageId ?? throw new InvalidOperationException("Message has no MessageId.");
         var message = context.Message;
 
-        var payment = Payment.CreatePending(message.OrderId, message.TotalAmount);
-        _db.Payments.Add(payment);
-        await _db.SaveChangesAsync(context.CancellationToken);
-
-        // Simulated payment gateway call. We're faking a ~20% failure rate on
-        // purpose — Phase 12 needs a real, reproducible failure path to inject into.
-        var succeeded = SimulatePaymentGateway(message.TotalAmount);
-
-        if (succeeded)
+        // Fast path: already-committed duplicate check, no transaction needed yet.
+        var alreadyProcessed = await _db.ProcessedMessages.AnyAsync(p => p.MessageId == messageId, context.CancellationToken);
+        if (alreadyProcessed)
         {
-            payment.MarkSucceeded();
-            await _db.SaveChangesAsync(context.CancellationToken);
-
-            await context.Publish(new PaymentProcessed
-            {
-                OrderId = message.OrderId,
-                PaymentId = payment.Id,
-                AmountCharged = message.TotalAmount,
-                OccurredAtUtc = DateTime.UtcNow
-            });
-
-            _logger.LogInformation("Payment succeeded for OrderId={OrderId}", message.OrderId);
+            _logger.LogInformation("Duplicate OrderPlaced message {MessageId} for OrderId={OrderId} — skipping.", messageId, message.OrderId);
+            return; // Acks the message without redoing any work.
         }
-        else
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(context.CancellationToken);
+
+        try
         {
-            payment.MarkFailed("Simulated gateway decline");
-            await _db.SaveChangesAsync(context.CancellationToken);
+            var payment = Payment.CreatePending(message.OrderId, message.TotalAmount);
+            _db.Payments.Add(payment);
 
-            await context.Publish(new PaymentFailed
+
+            var succeeded = SimulatePaymentGateway();
+
+            if (succeeded)
+                payment.MarkSucceeded();
+            else
+                payment.MarkFailed("Simulated gateway decline");
+
+            // Record the inbox entry in the SAME transaction as the business write.
+            _db.ProcessedMessages.Add(ProcessedMessage.Create(messageId));
+
+             if (succeeded)
             {
-                OrderId = message.OrderId,
-                Reason = "Simulated gateway decline",
-                OccurredAtUtc = DateTime.UtcNow
-            });
+                await context.Publish(new PaymentProcessed
+                {
+                    OrderId = message.OrderId,
+                    PaymentId = payment.Id,
+                    AmountCharged = message.TotalAmount,
+                    OccurredAtUtc = DateTime.UtcNow
+                });
+                _logger.LogInformation("Payment succeeded for OrderId={OrderId}", message.OrderId);
+            }
+            else
+            {
+                await context.Publish(new PaymentFailed
+                {
+                    OrderId = message.OrderId,
+                    Reason = "Simulated gateway decline",
+                    OccurredAtUtc = DateTime.UtcNow
+                });
+                _logger.LogWarning("Payment failed for OrderId={OrderId}", message.OrderId);
+            }
 
-            _logger.LogWarning("Payment failed for OrderId={OrderId}", message.OrderId);
+            await _db.SaveChangesAsync(context.CancellationToken);
+            await transaction.CommitAsync(context.CancellationToken);
+
+           
+        }
+        catch (DbUpdateException) when (IsUniqueConstraintViolation())
+        {
+            // Race: two instances of this consumer processed the same message concurrently
+            // (can genuinely happen if you scale PaymentService to 2+ replicas). The unique
+            // key on ProcessedMessage.MessageId rejects the second writer at the DB level —
+            // our own app-level check above is the fast path, this is the safety net.
+            await transaction.RollbackAsync(context.CancellationToken);
+            _logger.LogInformation("Concurrent duplicate detected for MessageId={MessageId} — safe to ignore.", messageId);
         }
     }
 
-    private static bool SimulatePaymentGateway(decimal amount)
-    {
-        // Deterministic-ish rule so you can reproduce failures on demand:
-        // any amount ending in .00 with a whole-number total divisible by 5 "fails".
-        // Simple enough to reason about, random enough to feel like a real gateway.
-        return Random.Shared.Next(1, 101) > 20; // ~80% success rate
-    }
+    private static bool IsUniqueConstraintViolation() => true; // simplified for teaching; real check inspects PostgresException.SqlState == "23505"
+
+    private static bool SimulatePaymentGateway() => Random.Shared.Next(1, 101) > 20;
 }

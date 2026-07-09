@@ -1,3 +1,4 @@
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using OrderService.Domain;
 
@@ -23,5 +24,9 @@ public class OrderDbContext : DbContext
             builder.Property(o => o.CreatedAtUtc).IsRequired();
             builder.Ignore(o => o.TotalAmount); // computed, not persisted
         });
+
+        modelBuilder.AddInboxStateEntity();
+        modelBuilder.AddOutboxMessageEntity();
+        modelBuilder.AddOutboxStateEntity();
     }
 }

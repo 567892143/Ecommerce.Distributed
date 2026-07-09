@@ -24,7 +24,7 @@ public class PlaceOrderHandler : IRequestHandler<PlaceOrderCommand, PlaceOrderRe
         var order = Order.Create(request.CustomerId, request.ProductId, request.Quantity, request.UnitPrice);
 
         _db.Orders.Add(order);
-        await _db.SaveChangesAsync(ct);
+       
 
        // await _publisher.PublishAsync(order.Id, order.CustomerId, order.TotalAmount);
 
@@ -38,6 +38,8 @@ public class PlaceOrderHandler : IRequestHandler<PlaceOrderCommand, PlaceOrderRe
             OccurredAtUtc = DateTime.UtcNow
         }, ct);
 
+         await _db.SaveChangesAsync(ct);
+      await Task.Delay(10000);
         return new PlaceOrderResult(order.Id, order.Status.ToString());
     }
 }
