@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using OrderService.Api.Features.GetOrderById;
 using OrderService.Api.Features.PlaceOrder;
 using OrderService.Api.Infrastructure;
+using OrderService.Api.Sagas;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,13 +19,19 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddMassTransit(x =>
 {
-      x.AddEntityFrameworkOutbox<OrderDbContext>(o =>
+    x.AddSagaStateMachine<OrderStateMachine, OrderSagaState>()
+        .EntityFrameworkRepository(r =>
+        {
+            r.ExistingDbContext<OrderDbContext>();
+            r.UsePostgres();
+        });
+
+          x.AddEntityFrameworkOutbox<OrderDbContext>(o =>
     {
-        o.UsePostgres();               // tells MassTransit which SQL dialect to generate for the outbox tables
-        o.UseBusOutbox();              // <-- this is the switch that reroutes ALL publishes through the outbox
-        o.QueryDelay = TimeSpan.FromSeconds(1); // how often the outbox delivery service polls for unsent messages
+        o.UsePostgres();
+        o.UseBusOutbox();
+        o.QueryDelay = TimeSpan.FromSeconds(1);
     });
-   
 
     x.UsingRabbitMq((context, cfg) =>
     {

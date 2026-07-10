@@ -30,8 +30,20 @@ services:
       - "5434:5432"          # different host port — 5432 and 5433 are already taken
     volumes:
       - paymentdb_data:/var/lib/postgresql/data
+  
+  inventorydb:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: inventoryservice
+    ports:
+      - "5435:5432"          # different host port — 5432 and 5433 are already taken
+    volumes:
+      - inventorydb_data:/var/lib/postgresql/data
 
 
 volumes:
   orderdb_data:
   paymentdb_data:
+  inventorydb_data:

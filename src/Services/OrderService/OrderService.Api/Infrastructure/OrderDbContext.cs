@@ -25,7 +25,17 @@ public class OrderDbContext : DbContext
             builder.Ignore(o => o.TotalAmount); // computed, not persisted
         });
 
-        modelBuilder.AddInboxStateEntity();
+        modelBuilder.Entity<OrderService.Api.Sagas.OrderSagaState>(builder =>
+{
+    builder.ToTable("order_saga_state");
+    builder.HasKey(x => x.CorrelationId);
+    builder.Property(x => x.CurrentState).HasMaxLength(64);
+    builder.Property(x => x.ProductId).IsRequired();
+    builder.Property(x => x.Quantity).IsRequired();
+    builder.Property(x => x.SubmittedAtUtc).IsRequired();
+});
+
+       modelBuilder.AddInboxStateEntity();
         modelBuilder.AddOutboxMessageEntity();
         modelBuilder.AddOutboxStateEntity();
     }
