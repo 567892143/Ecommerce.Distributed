@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "jdvJwaSFIG4va+LAZXoLEwEtusxIF9ZzuoLCVMjTySU=",
+  "Source": "FakePaymentGateway",
+  "BasePath": "_content/FakePaymentGateway",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

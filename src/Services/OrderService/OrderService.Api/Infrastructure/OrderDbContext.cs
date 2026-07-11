@@ -33,7 +33,11 @@ public class OrderDbContext : DbContext
     builder.Property(x => x.ProductId).IsRequired();
     builder.Property(x => x.Quantity).IsRequired();
     builder.Property(x => x.SubmittedAtUtc).IsRequired();
+    builder.Property(x => x.PaymentId);
+    builder.Property(x => x.AmountCharged).HasColumnType("decimal(18,2)");
 });
+
+   
 
        modelBuilder.AddInboxStateEntity();
         modelBuilder.AddOutboxMessageEntity();

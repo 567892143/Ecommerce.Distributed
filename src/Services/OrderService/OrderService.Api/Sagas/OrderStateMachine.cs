@@ -11,11 +11,16 @@ public class OrderStateMachine : MassTransitStateMachine<OrderSagaState>
     public State Completed { get; private set; } = default!;
     public State Failed { get; private set; } = default!;
 
+    public State Compensating { get; private set; } = default!;
+
     public Event<OrderPlaced> OrderPlacedEvent { get; private set; } = default!;
     public Event<PaymentProcessed> PaymentProcessedEvent { get; private set; } = default!;
     public Event<PaymentFailed> PaymentFailedEvent { get; private set; } = default!;
     public Event<InventoryReserved> InventoryReservedEvent { get; private set; } = default!;
     public Event<InventoryFailed> InventoryFailedEvent { get; private set; } = default!;
+
+    public Event<PaymentRefunded> PaymentRefundedEvent { get; private set; } = default!;
+
 
     public OrderStateMachine()
     {
@@ -29,6 +34,8 @@ public class OrderStateMachine : MassTransitStateMachine<OrderSagaState>
         Event(() => PaymentFailedEvent, x => x.CorrelateById(ctx => ctx.Message.OrderId));
         Event(() => InventoryReservedEvent, x => x.CorrelateById(ctx => ctx.Message.OrderId));
         Event(() => InventoryFailedEvent, x => x.CorrelateById(ctx => ctx.Message.OrderId));
+        Event(() => PaymentRefundedEvent, x => x.CorrelateById(ctx => ctx.Message.OrderId));
+
 
         Initially(
             When(OrderPlacedEvent)
@@ -41,7 +48,10 @@ public class OrderStateMachine : MassTransitStateMachine<OrderSagaState>
                 .TransitionTo(AwaitingPayment));
 
         During(AwaitingPayment,
-            When(PaymentProcessedEvent)
+            When(PaymentProcessedEvent).Then(context => {
+                    context.Saga.PaymentId = context.Message.PaymentId;
+                    context.Saga.AmountCharged = context.Message.AmountCharged;
+               })
                 .Send(new Uri("queue:reserve-inventory"), context => new ReserveInventory
                 {
                     OrderId = context.Saga.CorrelationId,
@@ -63,8 +73,18 @@ public class OrderStateMachine : MassTransitStateMachine<OrderSagaState>
 
             When(InventoryFailedEvent)
                 .Then(context => Console.WriteLine(
-                    $"[Saga] Order {context.Saga.CorrelationId} failed at inventory step — " +
-                    "PAYMENT WAS ALREADY CHARGED AND IS NOT YET REFUNDED. This is the gap Phase 10 closes."))
+                    $"[Saga] Order {context.Saga.CorrelationId} failed at inventory step — issuing compensating refund for PaymentId={context.Saga.PaymentId}."))
+                .Send(new Uri("queue:refund-payment"), context => new RefundPayment
+                {
+                    OrderId = context.Saga.CorrelationId,
+                    PaymentId = context.Saga.PaymentId,
+                    Amount = context.Saga.AmountCharged
+                })
+                .TransitionTo(Compensating));
+
+        During(Compensating,
+            When(PaymentRefundedEvent)
+                .Then(context => Console.WriteLine($"[Saga] Order {context.Saga.CorrelationId} fully compensated — refund confirmed. Terminal state: Failed."))
                 .TransitionTo(Failed)
                 .Finalize());
 

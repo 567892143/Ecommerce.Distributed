@@ -196,10 +196,16 @@ namespace OrderService.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<decimal>("AmountCharged")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("CurrentState")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("PaymentId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uuid");

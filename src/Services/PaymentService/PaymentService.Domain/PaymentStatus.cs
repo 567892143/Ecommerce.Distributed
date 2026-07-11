@@ -1,3 +1,3 @@
 namespace PaymentService.Domain;
 
-public enum PaymentStatus { Pending, Succeeded, Failed }
+public enum PaymentStatus { Pending, Succeeded, Failed, Refunded }

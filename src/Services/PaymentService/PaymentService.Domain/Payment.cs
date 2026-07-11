@@ -8,6 +8,7 @@ public class Payment
     public PaymentStatus Status { get; private set; }
     public string? FailureReason { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
+    public DateTime? RefundedAtUtc { get; private set; }
 
     private Payment() { }
 
@@ -26,5 +27,14 @@ public class Payment
     {
         Status = PaymentStatus.Failed;
         FailureReason = reason;
+    }
+
+      public void MarkRefunded()
+    {
+        if (Status != PaymentStatus.Succeeded)
+            throw new InvalidOperationException($"Cannot refund a payment in status {Status}.");
+
+        Status = PaymentStatus.Refunded;
+        RefundedAtUtc = DateTime.UtcNow;
     }
 }

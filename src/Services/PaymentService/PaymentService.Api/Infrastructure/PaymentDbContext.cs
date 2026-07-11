@@ -23,6 +23,7 @@ public class PaymentDbContext : DbContext
             builder.Property(p => p.Status).HasConversion<string>().IsRequired();
             builder.Property(p => p.FailureReason).HasMaxLength(500);
             builder.Property(p => p.CreatedAtUtc).IsRequired();
+            builder.Property(p=>p.RefundedAtUtc);
         });
 
          modelBuilder.Entity<ProcessedMessage>(builder =>

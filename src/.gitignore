@@ -112,3 +112,6 @@ coverage-report/
 ############################################
 _ReSharper*/
 *.DotSettings.user
+
+exe 
+dll

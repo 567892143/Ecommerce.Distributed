@@ -9,13 +9,16 @@ namespace PaymentService.Api.Features.HandleOrderPlaced;
 public class OrderPlacedConsumer : IConsumer<OrderPlaced>
 {
     private readonly PaymentDbContext _db;
+    private readonly PaymentGatewayClient _gatewayClient;
     private readonly ILogger<OrderPlacedConsumer> _logger;
 
-    public OrderPlacedConsumer(PaymentDbContext db, ILogger<OrderPlacedConsumer> logger)
+    public OrderPlacedConsumer(PaymentDbContext db, PaymentGatewayClient gatewayClient, ILogger<OrderPlacedConsumer> logger)
     {
         _db = db;
+        _gatewayClient = gatewayClient;
         _logger = logger;
     }
+
 
     public async Task Consume(ConsumeContext<OrderPlaced> context)
     {
@@ -30,6 +33,8 @@ public class OrderPlacedConsumer : IConsumer<OrderPlaced>
             return; // Acks the message without redoing any work.
         }
 
+        
+
         await using var transaction = await _db.Database.BeginTransactionAsync(context.CancellationToken);
 
         try
@@ -38,7 +43,18 @@ public class OrderPlacedConsumer : IConsumer<OrderPlaced>
             _db.Payments.Add(payment);
 
 
-            var succeeded = SimulatePaymentGateway();
+            bool succeeded;
+        try
+        {
+            succeeded = await _gatewayClient.ChargeAsync(message.OrderId, message.TotalAmount, context.CancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Circuit breaker OPEN, or retries exhausted, or bulkhead rejected the call —
+            // all surface here as an exception from the resilience pipeline itself.
+            _logger.LogError(ex, "Payment gateway call failed after resilience policies exhausted for OrderId={OrderId}", message.OrderId);
+            succeeded = false;
+        };
 
             if (succeeded)
                 payment.MarkSucceeded();

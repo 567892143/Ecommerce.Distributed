@@ -9,4 +9,8 @@ public class OrderSagaState : SagaStateMachineInstance
     public Guid ProductId { get; set; }
     public int Quantity { get; set; }
     public DateTime SubmittedAtUtc { get; set; }
+
+    public Guid PaymentId { get; set; }        // NEW
+    
+    public decimal AmountCharged { get; set; }  // NEW
 }
